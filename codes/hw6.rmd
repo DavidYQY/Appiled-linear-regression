@@ -1,0 +1,718 @@
+---
+title: "Applied Linear Statistical Models"
+subtitle: "Homework 6"
+author: "Qiuyang Yin, 2015011468"
+date: "May 14th, 2017"
+output: 
+  pdf_document: 
+    fig_caption: yes
+    toc: yes
+---
+
+# Problem 1
+## KNNL 6.15
+### b
+- scatterplot
+- correlation matirx
+- interpret and state principal findings
+
+```{r}
+options(warn = -1)
+dat=read.table("CH06PR15_300201404.txt")
+colnames(dat)=c("Y","X1","X2","X3")
+## scatter plot
+pairs(dat)
+## correlation matrix
+cor(dat)
+```
+
+The scatter plot and correlation matrix both demostrate that Y have a relatively strong negative relationship with both X1, X2 and X3, and X1 has the largest correlation with Y, indicating the smallest p-value in the t test and the largest extra sum of squares among variables.
+
+In addition, X1 , X2, and X3 have a strong correlation between any two of them, indicating chances are that they may have multicollinearity problem in the latter discussion.
+
+### c
+- Fit the model(6.5)
+- State the estimated regression function
+- Interpret b2
+
+```{r}
+reg=lm(Y~X1+X2+X3,data = dat,x=TRUE,y=TRUE)
+summary(reg)
+```
+
+So the estimated regression model is:
+$$\hat Y_i=158.4913-1.1416X_{i1}-0.4420X_{i2}-13.4702X_{i3}$$
+
+And $b2=-0.4420$ represents that, when $X_2$ has an unit increase, the mean response of Y is -0.4420. i.e, Y will decrease 0.4420 in average when $X_2$ increases in one.
+
+### d
+- boxplot of residuals
+- any outliers?
+
+```{r}
+boxplot(reg$residuals,main="boxplot for residuals")
+```
+
+There doesn't seem to have any outlier according to boxplot(no dots lie outside the border)
+
+Let us judge outlier from studentized residuals:
+```{r}
+plot(rstandard(reg)~reg$fitted.values, xlab="Predicted values", ylab="RStudent")
+abline(h=2)
+abline(h=-2)
+```
+All the dots are between -2 and 2, so we can conclude that there are no outliers in this model.
+
+### e
+- residuals against $\hat Y$, each of variable and two-factor interaction term.
+- a normal probability plot.
+- interpret
+
+To prevent to be too lengthy(if we plot 8 plots separately). I put four graphs in one plot. I don't think it will bother as long as we can observe the graph clearly.
+```{r}
+dat$X1X2=dat$X1*dat$X2
+dat$X1X3=dat$X1*dat$X3
+dat$X2X3=dat$X2*dat$X3
+plot.new()
+par(mfrow=c(2,2))
+plot(reg$residuals~reg$fitted.values)
+plot(reg$residuals~dat$X1)
+plot(reg$residuals~dat$X2)
+plot(reg$residuals~dat$X3)
+plot(reg$residuals~dat$X1X2)
+plot(reg$residuals~dat$X2X3)
+plot(reg$residuals~dat$X1X3)
+qqnorm(reg$residuals)
+qqline(reg$residuals, col = "red")
+par(mfrow=c(1,1))
+```
+
+In terms of the seven plots related to residuals. Firstly, I haven't seen any obvious trend with any of the variable, so I can roughly conclude that the residuals are **independent**.
+
+With regard to the heteroscedasticity(variance). I have spotted a slight increase in variance with the increase in $\hat Y$, and a slight decrease in variance with the increase in $X1$,$X1X2$ and $X1X3$. Maybe we need  *Homogeneity of variance test* to reach a more precise conclusion.
+
+With regard to the normality, the dots fit well in the Q-Q plots, except for several outliers. We can roughly conclude that the residuals are **normal**.
+
+## KNNL 6.16
+### a
+- Test the regression relation use $\alpha=0.10$
+- state the alternatives, decision rule and the conclusion.
+- p value
+- what does the result imply about $\beta_1$ ,$\beta_2$ and $\beta_3$?
+
+$$H_0: \beta_1=\beta_2=\beta_3=0$$
+$$H_1: \beta_1^2+\beta_2^2+\beta_3^2 > 0$$
+
+$H_1$ also represents that not all the $\beta_k(k=1,2,3)$ equal zero.
+
+We use the F test statistic:
+$$F^*=MSR/MSE$$
+
+And the decision rule is :
+
+If $F^* \le F(1-\alpha;p-1,n-p)$, conclude $H_0$
+
+If $F^* < F(1-\alpha;p-1,n-p)$, conclude $H_1$
+
+Here $p=4$,$n=46$,and $\alpha=0.1$.
+
+And the conclusion:
+```{r}
+summary(reg)
+```
+
+The result lies in the bottom of the summary. $F^*=30.05$, $p-value=1.542e-10$. Since p-value is smaller than 0.10, we reject $H_0$.
+
+The test imply that at least one in the $\beta_1$ ,$\beta_2$ and $\beta_3$ is not zero.
+
+### b
+- joint interval of $\beta_1$ ,$\beta_2$ and $\beta_3$ using $\alpha=0.10$
+- Interpret
+
+Here I use the bofferroni method:
+```{r}
+confint(reg,level = 1-0.1/3)
+```
+
+For Bonferroni joint confidence. $1-\alpha/3$ is appiled for $1-\alpha$, so 1-0.1/3 is used.
+We conclude that $\beta_1$ is between -1.614 and -0.6690 , $\beta_2$ is between -1.524 and 0.6405, and $\beta_3$ is between -29.092 and 2.1517. The familt confidence is at least 0.99.
+
+### c
+- coefficient of the multiple determination
+- indication?
+```{r}
+summary(reg)$r.square
+```
+
+The $R^2$ here is 0.6821943, indicating that 68.21% of variance have been explained. It is good to explain, however a little bit low for prediction.
+
+## KNNL 6.17
+### a
+- interval estimate of mean satisfaction of 35,45,2.2, $\alpha=0.1$. 
+- interpret
+```{r}
+ans=predict(reg,se.fit = T,data.frame(X1=35,X2=45,X3=2.2),interval = "confidence",level = 0.90)
+ans$fit
+```
+
+We conclude with confidence coefficient 0.9 that the mean satisfaction when patient age is 35, severity of illness is 45, and anxiety level is 2.2 is somewhere between 64.52854 and 73.49204^[KNNL P54]. 
+
+### b
+- interval estimate of prediction of 35,45,2.2, $\alpha=0.1$. 
+- interpret
+
+```{r}
+ans=predict(reg,se.fit = T,data.frame(X1=35,X2=45,X3=2.2),interval = "predict",level = 0.90)
+ans$fit
+```
+
+With confidence coefficient 0.90, we predict that the satisfaction for patient whose age is 35, severity of illness is 45, and anxiety level is 2.2 will be somewhere between 51.50965 and 86.51092^[KNNL P59].
+
+# Problem 2
+## KNNL 7.5
+### a
+- obtain ANOVA table
+- Extra sum of square into X2, X1|X2, and X3|X1,X2
+
+```{r}
+reg2=lm(Y~X2+X1+X3,data = dat,x=TRUE,y=TRUE)
+anova(reg2)
+```
+
+So we can conclude that SSM(X2)=4860.3,SSM(X1|X2)=3896.0,SSM(X3|X1,X2)=364.2
+
+### b
+- Test whether $X_3$ can be dropped from the regression given that X1 and X2 is retained.
+- State the alternatives, decision rule and conclusion.
+- P value
+
+$$H_0: \beta_3=0$$
+$$H_1: \beta_3 \neq   0 $$
+
+And the F statistic is :
+$$F^*=\frac {MSR(X3|X1,X2)}{MSE(X1,X2,X3)}$$
+
+If $F^* \le F(1-\alpha;1,n-4)$, conclude $H_0$
+
+If $F^* < F(1-\alpha;1,n-4)$, conclude $H_1$
+
+There two methods to do the test. Firstly, we use the type 3 extra sum of squares.
+```{r}
+require(car)
+Anova(reg,type = "3")# method 1 
+```
+
+And another way to do this is to use the general linear test:
+```{r}
+full=lm(Y~X1+X2+X3,data = dat,x=TRUE,y=TRUE)
+reduced=lm(Y~X1+X2,data = dat,x=TRUE,y=TRUE)
+anova(reduced,full)# method 2
+```
+
+Both of the p-values are 0.06468. Since it is greater than 0.025, we can not reject $H_0$, so we conclude that X3 can be dropped from the regression line.
+
+## KNNL 7.6
+- Test whether both $X_2$ and $X_3$ can be dropped from the regression funtion.
+- state the alternatives, decision rule and conclusion.
+- p-value.
+
+$$H_0: \beta_2=\beta_3=0$$
+$$H_1: \beta_2^2+\beta_3^2 \neq  0 $$
+
+And the F statistic is :
+$$F^*=\frac {MSR(X2,X3|X1)}{MSE(X1,X2,X3)}$$
+
+If $F^* \le F(1-\alpha;2,n-4)$, conclude $H_0$
+
+If $F^* < F(1-\alpha,2,n-4)$, conclude $H_1$
+
+The first method is to calculate F based on the definition:
+```{r}
+SSR=480.9+364.2# type 3 extra sum of squares.
+sigma=summary(reg)$sigma
+(F=SSR/2/(sigma^2))# method 1
+```
+
+And the second method is to use the general linear test:
+```{r}
+full=lm(Y~X1+X2+X3,data = dat,x=TRUE,y=TRUE)
+reduced=lm(Y~X1,data = dat,x=TRUE,y=TRUE)
+anova(reduced,full)# method 2
+```
+
+Since the p-value is 0.02216, which is smaller than 0.025, we reject $H_0$ and conclude that neither X2 or X3 can be dropped.
+
+## KNNL 7.9
+- Test whether $\beta_1 = -1.0$ and $\beta_2=0$,using $\alpha=0.025$
+- State the alternatives, decision rule and conclusion.
+
+$$H_0: \beta_1=-1.0$$
+$$H_1: \beta_1 \neq -1.0$$
+
+And the t statistic is :
+$$t^*=\frac {b_1+1}{s(b_1)}$$
+
+If $|t^*| \leq t(1-\alpha/2,n-p)$, conclude $H_0$
+
+Otherwise conclude $H_1$
+
+```{r}
+result=summary(reg)
+mdf=result$df[2]
+sb1=result$coefficients[6]
+b1=result$coefficients[2]
+T1=(b1+1)/sb1
+(p.value1=2*(1-pt(abs(T1),df = mdf)))
+```
+
+The p-value is 0.51, so we can fail to reject $H_0$ and conclude that $\beta_1=-1$
+
+And another test is just identical to the previous one:
+
+$$H_0: \beta_2=0$$
+$$H_1: \beta_2 \neq 0 $$
+
+And the t statistic is :
+$$t^*=\frac {b_2}{s(b_2)}$$
+
+If $|t^*| \leq t(1-\alpha/2,n-p)$, conclude $H_0$
+
+Otherwise conclude $H_1$
+
+```{r}
+sb2=result$coefficients[7]
+b2=result$coefficients[3]
+T2=(b2)/sb2
+(p.value2=2*(1-pt(abs(T2),df = mdf)))
+```
+
+Since the p-value is 0.37, we fail to reject $H_0$ and conclude that $\beta_2=0$
+
+# Problem 3
+## KNNL 7.26
+### a
+- Fit the first-order linear regression model for X1 and X2
+- State the fitted regression model
+
+```{r}
+reg3=lm(Y~X1+X2,data = dat,x=TRUE,y=TRUE)
+summary(reg3)
+```
+
+$$\hat Y_i=156.6719-1.2677X_{i1}-0.9208X_{i2}$$
+
+### b
+- Compare the results with Part 6.15c
+
+```{r}
+reg=lm(Y~X1+X2+X3,data = dat,x=TRUE,y=TRUE)
+result1=summary(reg)
+result1$coefficients
+result2=summary(reg3)
+result2$coefficients
+```
+
+We can see from the result above that the estimated coefficients of X1 and X2 change when we include another variable X3, which is the result of the multicolinearity.
+
+### c
+- SSR(X1) and SSR(X1|X3)
+- SSR(X2) and SSR(X2|X3)
+
+```{r}
+(SSR.X1=anova(reg)$`Sum Sq`[1])
+temp=lm(Y~X3+X1,data = dat,x=TRUE,y=TRUE)
+(SSR.X1_X3=anova(temp)$`Sum Sq`[2])
+
+temp=lm(Y~X2,data = dat,x=TRUE,y=TRUE)
+(SSR.X2=anova(temp)$`Sum Sq`[1])
+temp=lm(Y~X3+X2,data = dat,x=TRUE,y=TRUE)
+(SSR.X2_X3=anova(temp)$`Sum Sq`[2])
+```
+
+So we can conclude that $SSR(X1)=8273$ and $SSR(X1|X3)=3483$, they are not equal.
+$SSR(X2)=4860$ and $SSR(X2|X3)=708$, they are not equal,too.
+
+### d
+```{r}
+cor(dat)[1:4,1:4]
+```
+
+Because of the multicolinearity between X1,X2 and X3. Consequences are that:
+
+- extra sum of square may not equal sum of square
+
+Just like what we have seen in part c, $SSR(X1)$ and $SSR(X1|X3)$, they are not equal.
+$SSR(X2)$ and $SSR(X2|X3)$, they are not equal,too.
+
+- coeffenct standard error may become larger, leading to the failure in t test.
+- coefficient may not make sense
+
+Just like what we have seen in part b, the coefficient changes when another variable is included.
+
+## KNNL 7.29
+### a
+\begin{equation}
+  \begin{aligned}
+	&	SSR(X_1)+SSR(X_2,X_3|X_1)+SSR(X_4|X_1,X_2,X_3) \\
+	& = SSR(X_1)+SSR(X_1,X_2,X_3)-SSR(X_1)+SSR(X_1,X_2,X_3,X_4)- SSR(X_1,X_2,X_3)\\
+	&= SSR(X_1,X_2,X_3,X_4)
+    \end{aligned}
+\end{equation}
+
+### b
+\begin{equation}
+  \begin{aligned}
+	&	SSR(X_2,X_3)+SSR(X_1|X_2,X_3)+SSR(X_4|X_1,X_2,X_3) \\
+	& = SSR(X_2,X_3)+SSR(X_1,X_2,X_3)-SSR(X_2,X_3)+SSR(X_1,X_2,X_3,X_4)- SSR(X_1,X_2,X_3)\\
+	&= SSR(X_1,X_2,X_3,X_4)
+    \end{aligned}
+\end{equation}
+
+# Problem 4
+## KNNL 8.16
+### a
+
+- Explain how each regression coefficient in model (8.33) is interpreted here.
+
+```{r}
+rm(list = ls())
+dat2=read.table("CH01PR19_818607472.txt")
+temp=read.table("CH08PR16_703809665.txt")
+dat2=data.frame(dat2,temp)
+colnames(dat2)=c("Y","X1","X2")
+dat2$X1X2=dat2$X1*dat2$X2
+```
+
+The model 8.33 is:
+$$Y_i=\beta_0+\beta_1X_{i1}+\beta_2X{i2}+\epsilon_i$$
+
+where $X_{i1}$ stands for the ACT test score, and $X_{i2}$ stands for whether studenthad chosen a major field of concentration at the time the application was submitted.
+
+If model 8.33 is applied, $\beta_0$ stands for the intercept for student who have chosen the major field, while $\beta_0+\beta_2$ stands for the intercept for student who have **not** chosen the major field. They share the same slope of $\beta_1$, which is the average response to the unit increase of ACT test score.
+
+We may take a look at the model from the figure below:
+```{r}
+require(ggplot2)
+ggplot(dat2, aes(y=Y,x=X1,col=as.factor(X2))) +
+  geom_point() +
+  geom_smooth(method = "lm",se=FALSE)
+```
+
+### b
+- Fit the regression model
+- state the estimated regression function
+
+```{r}
+reg=lm(Y~X1+X2,data = dat2,x=TRUE,y=TRUE)
+summary(reg)
+```
+
+So the estimated regression function is :
+$$\hat Y_i=2.20+0.04X_{i1}-0.09X_{i2}$$
+
+### c
+- Test whether $X_2$ can be dropped from the estimated regression model
+- State the alternatives, decision rule and conclusion.
+
+$$H_0: \beta_2=0$$
+$$H_1: \beta_2 \neq 0 $$
+
+And the t statistic is :
+$$t^*=\frac {b_2}{s(b_2)}$$
+
+If $|t^*| \leq t(1-\alpha/2,n-p)$, conclude $H_0$
+
+Otherwise conclude $H_1$
+```{r}
+result=summary(reg)
+result$coefficients[3,4]
+```
+
+Since the p-value of the t test is 0.433>0.01, we fail to reject $H_0$ and conclude that $X_2$ can be dropped from the regression model.
+
+### d
+```{r}
+par(mfrow=c(1,1))
+ggplot(data.frame(reg$residuals,dat2$X1X2),aes(y=reg$residuals,x=dat2$X1X2))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+
+According to smooth line, I don't think X1X2 is a helpful term, although there is a slight positive relationship.
+
+## KNNL 8.20
+### a
+```{r}
+reg=lm(Y~X1+X2+X1X2,data = dat2,x=TRUE,y=TRUE)
+summary(reg)
+```
+
+So the estimated regression function is :
+$$\hat Y_i=3.226-0.003X_{i1}-1.650X_{i2}+0.062X_{i1}X_{i2}$$
+
+### b
+- Test whether $X_1X_2$ can be dropped from the estimated regression model
+- State the alternatives, decision rule and conclusion.
+
+$$H_0: \beta_3=0$$
+$$H_1: \beta_3 \neq 0 $$
+
+And the t statistic is :
+$$t^*=\frac {b_3}{s(b_3)}$$
+
+If $|t^*| \leq t(1-\alpha/2,n-p)$, conclude $H_0$
+
+Otherwise conclude $H_1$
+```{r}
+result=summary(reg)
+result$coefficients[4,4]
+```
+
+Since p-value is 0.0205<0.05, we reject $H_0$ and conclude that the interaction term can not be dropped from the model.
+
+Accually unlike model 8.33, here we have different slope for different groups of students: $\beta_1+\beta_3$ for student having chosen major and $\beta_1$ for students haven't chosen major. The coefficient of $\beta_3$ stands for the difference in slope between two groups.
+
+
+# Problem 5
+## a
+- Indicate which subset of predictors you would recommend as best for predicting patient satisfaction.
+
+```{r}
+rm(list=ls())
+dat=read.table("CH06PR15_300201404.txt")
+colnames(dat)=c("Y","X1","X2","X3")
+fit=lm(Y~X1+X2+X3,data = dat)
+sigsqhat.big <- summary(fit)$sigma^2
+library(leaps)
+predictors = dat[,c("X1", "X2","X3")]
+response = dat$Y
+
+nmodels=7
+leapSet = leaps(x=predictors, y=response, nbest = nmodels)
+
+n = nrow(dat)
+cp <- double(nmodels)
+aic <- double(nmodels)
+bic <- double(nmodels)
+cvss <- double(nmodels)
+adj.rsquared <- double(nmodels)
+for( i in 1:nmodels){
+  selectVarsIndex = leapSet$which[i,]
+  newData <- cbind(response, predictors[, selectVarsIndex])
+  newData <- as.data.frame(newData)
+  selectedMod <- lm(response ~ ., data=newData)  # build model
+  summary(selectedMod)
+  adj.rsquared[i] <- summary(selectedMod)$adj.r.squared
+  aic[i] <- AIC(selectedMod)
+  bic[i] <- AIC(selectedMod, k = log(n))
+  cvss[i] <- sum((selectedMod$residuals/(1 - hatvalues(selectedMod)))^2)
+  cp[i] <- sum(selectedMod$residuals^2)/sigsqhat.big + 2 * selectedMod$rank - n
+}
+
+models = leapSet$which
+colnames(models) = c("X1","X2","X3")
+bestModels = cbind(adj.rsquared, cp, aic, bic, cvss, models)
+bestModels
+```
+
+We can conclude from all the criteria that model(X1,X3) is the best subset of predictor.(Largest in adj.rsquared, min in cp, aic,bic and PRESS)
+
+## b
+- Do the four criteria identify the same best subset
+- Does this always happen?
+
+Yes!
+
+No, this does not always happen, there are many examples when different criteria can lead to totally different 'best model'.TODO
+
+## c
+No, since only there are only $2^3=8$ models.
+
+# Problem 6
+## KNNL 9.15
+```{r}
+rm(list = ls())
+dat=read.table("CH09PR15_11905844.txt")
+colnames(dat)=c("Y","X1","X2","X3")
+```
+
+### b
+- scatter plot and correlation matrix
+- discuss
+
+```{r}
+pairs(dat)
+cor(dat)
+```
+
+We can conclude from the scatter plot and correaltion matrix that response variable (Y) has a strong negative relationship with X1 and X2, and a positive relationship with X3.
+
+There may have some multicollinearity problems because the correaltion between X1 and X2 is 0.46, which is relatively high.
+
+### c
+
+```{r}
+fit=lm(Y~X1+X2+X3,data = dat)
+summary(fit)
+```
+
+All of the p-values are small, so all of the predictors should be retained.
+
+## KNNL 9.16
+### a
+```{r}
+dat$X1=dat$X1-mean(dat$X1)
+dat$X2=dat$X2-mean(dat$X2)
+dat$X3=dat$X3-mean(dat$X3)
+dat$X1X2=dat$X1*dat$X2
+dat$X1X3=dat$X1*dat$X3
+dat$X2X3=dat$X3*dat$X2
+dat$X1_2=dat$X1*dat$X1
+dat$X2_2=dat$X2*dat$X2
+dat$X3_2=dat$X3*dat$X3
+predictors = dat[,c(-1)]
+response = dat$Y
+```
+
+There are two criteria using Cp method:
+
+- Cp is small
+- Cp is near p
+
+Here is an approach to visualizing, however I will not use this method:
+```{r}
+test=regsubsets(x=predictors,y=response, nbest = 5)
+plot(test,scale = "Cp")#visualizing
+```
+
+Now let's begin:
+
+#### Firstly
+
+let's pick three smallest Cps and check their models:
+```{r}
+require(leaps)
+
+
+ans=leaps(x=predictors,y=response,nbest = 30,method = "Cp")
+model=ans$which
+colnames(model)=colnames(predictors)
+
+(s=sort(ans$Cp)[1:3])
+o=order(ans$Cp)[1:3]
+model[o,]
+```
+
+So here three best models according to 'smallest cp' critera have been picked out. However, considering the second criteria, there Ps are:
+```{r}
+ans$size[o]
+```
+
+There is a large gap between cp and p. 
+
+#### Secondly
+
+If we pick the models whose cp is nearest to cp:
+```{r}
+(s=sort(abs(ans$Cp-ans$size))[1:5])
+o=order(abs(ans$Cp-ans$size))[1:5]
+model[o,]
+```
+
+But their cps are too large:
+```{r}
+ans$Cp[o]
+```
+
+Now let's check the cp~p plot:
+```{r}
+plot(ans$size,ans$Cp)
+abline(0,1)
+```
+
+#### Finally
+
+So I choose the criteria below:
+
+- |Cp-p| should smaller than 1
+- Among all the models satisfy rule 1, pick smallest cp
+
+```{r}
+require(dplyr)
+tempdata=abs(ans$Cp-ans$size)
+mydat=data.frame(ans$Cp,tempdata,ans$size,model)
+mydat = mydat %>% filter(tempdata<1 & ans.size<=6)
+mydat
+```
+
+So the best subset according to my criteria above is :
+
+- X1,X2,X3,$X_1^2$
+- X1,X2,X3,$X_1^2$, $X_2^2$
+- X1,X2,X3,X1X2, X1X3
+
+However the term 'near' is quite subjective. If we set the threshold value |cp-p|=1.8:
+```{r}
+tempdata=abs(ans$Cp-ans$size)
+mydat=data.frame(ans$Cp,tempdata,ans$size,model)
+mydat = mydat %>% filter(tempdata<1.8 & ans.size<=6)
+mydat
+```
+
+The best models selected is similar to the 'smallest cp' approach
+
+- X1, X2, X3, X1X2
+- X1, X2, X3, X1X2, $X_2^2$
+- X1, X2, X3, $X_1^2$, $X_2^2$
+
+TODO
+
+### b
+
+We can see from the result above that accually there isn't much difference in Cp among 'best models'. When the threshold is 1, the three cps are 4.6,5.0 and 5.26.
+When the threshold is 1.8, the three cps are 3.3,4.44 and 4.64.
+
+## KNNL 9.19
+### a
+- using foward stepwise regression with $\alpha=0.10$ and $\alpha=0.15$
+^[http://stackoverflow.com/questions/22913774/forward-stepwise-regression]
+
+```{r}
+min.model=lm(Y~1,data = dat)
+biggest=(lm(Y~.,data = dat))
+```
+
+When $\alpha=0.10$^[https://stats.stackexchange.com/questions/97257/stepwise-regression-in-r-critical-p-value]
+```{r}
+#a=0.10
+m=qchisq(0.10,1,lower.tail=FALSE)
+fwd.model = step(min.model, scope=list(lower=min.model, upper=biggest),
+                 direction='both', k=m)
+```
+
+So the best model chosen is $Y \sim X_1+X_2+X_3+X_1X_2$
+
+If $\alpha=0.15$
+```{r}
+m=qchisq(0.15,1,lower.tail=FALSE)
+fwd.model = step(min.model,scope=list(lower=min.model, upper=biggest),
+                 direction='both', k=m)
+```
+
+So the best model chosen is $Y \sim X_1+X_2+X_3+X_1X_2+X_3^2$
+
+### b
+```{r}
+ans=leaps(x=predictors,y=response,nbest = 30,method = "adjr2")
+model=ans$which
+colnames(model)=colnames(predictors)
+
+(s=sort(ans$adjr2,decreasing = T)[1:3])
+o=order(ans$adjr2,decreasing = T)[1:3]
+model[o,]
+```
+
+We can know from the result that the best model according to the adjusted R square is 
+$$Y \sim X_1+X_2+X_3+X_1X_2+X_3^2$$
+
+which is identical to the foward stepwise regression when $\alpha=0.15$

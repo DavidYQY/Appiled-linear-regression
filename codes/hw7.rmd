@@ -1,0 +1,448 @@
+---
+title: "线性回归分析"
+subtitle: "Homework 7"
+author: "尹秋阳, 2015011468"
+date: "2017年5月27日"
+header-includes: 
+  - \usepackage{ctex} 
+
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    number_sections: yes
+    toc: yes
+---
+
+# Problem 1(KNNL 10.11)
+```{r, include=FALSE}
+rm(list = ls())
+options(warn = -1)
+require(ggplot2)
+require(car)
+dat=read.table("CH06PR15_300201404.txt")
+colnames(dat)=c("Y","X1","X2","X3")
+```
+
+## a
+
+- Obtain studentlized deleted residuals
+- Bonferroni outlier test procedure, $\alpha=0.1$(decision rule and conclusion)
+
+Studentlized deleted residuals are stored in variable **stl.del.resid**, the head of which is listed below:
+```{r}
+regmodel=lm(data = dat,Y~.)
+stl.del.resid=rstudent(regmodel)
+head(stl.del.resid)
+```
+
+The boferroni outlier test is shown below:
+
+Decision rule:
+
+For each case:
+$$t_i=\frac {e_i}{MSE_{(i)}(1-h_{ii})}$$
+
+If $|ti|<t(1-\alpha/2n;n-p-1)$ we conclude that case i is not outlying; otherwise we conclude that case i is an outltying case.(Here n=46 and p=4)
+
+Conclusion:
+```{r}
+outlierTest(regmodel)
+```
+
+Here we found that the largest |rstudent| is 1.974202. And $t(1-\alpha/2n;n-p-1)$ is :
+```{r}
+qt(1-0.1/2/46,df = 46-4-1)
+```
+
+Since all the absolute studentlized deleted residuals are below this value. We conclude that there is no Y outlier.
+
+
+## b
+
+- Obtain the diagnal elements of the hat matrix
+- Identify any outlying X observations
+
+The diagnal elements are stored in hii:
+```{r}
+hii=hatvalues(regmodel)
+head(hii)
+```
+
+And according to the criteria on the text, the cutoff value is $2p/n$:
+```{r}
+p=sum(hii)#p=3+1=4
+n=nrow(dat)
+(cutoff=2*p/n)
+```
+
+According to this criteria, the outlying X observations are:
+```{r}
+hii[which(hii>cutoff)]
+```
+
+Those are case 9, 28 and 39.
+
+## d
+
+- Obtain DFFITS, DFBETAS, and Cook's distance values for these cases(11,17,27)
+- Assess its influence
+
+I have asked Mr.Zhu about the criteria to identify the size of dataset. He believes that when $n/p=5$, it is often considered **small**; when $n/p=10$, it is often considered **medium**; and when $n/p=15$, it is often considered **large**.
+
+Based on this criteria, the dataset here is considered to be **medium**
+
+```{r, include=FALSE}
+obj=c(11,17,27)
+```
+
+The DFFITS are:
+```{r}
+dffit=dffits(regmodel)
+dffit[obj]
+```
+
+According to the comments above. When the size of dataset is medium, the cut-off point is **1**. So the dffit result is just okay, and we just conclude that the case 11, 17 and 27 do **not** have much effect on the single fitted value.
+
+The DFBETAS are:
+```{r}
+dfbeta=dfbetas(regmodel)
+dfbeta[obj,]
+```
+
+According to the comments above. When the size of dataset is medium, the cut-off point of dfbeta is also **1**. So the dfbeta result is just okay, and we just conclude that the case 11, 17 and 27 do **not** have much effect on the regression coefficients.
+
+The cook's distances are:
+```{r}
+(cutoff =4/n)
+cook.d=cooks.distance(regmodel)
+cook.d[obj]
+```
+
+It can be seen above that case 11 does not exceeds the cut off edge, indicating not much effect on the all fitted values; case 17 obviously exceeds the cut off edge, indicating to have much effect on the all fitted values; case 27 is just below the cutting edge, which is in the grey area. 
+
+From my perspective, case 27 is just okay with the cook's distance, which means that it **does** not much effect on the all fitted values;
+
+## e
+
+- Calculate the average absolute percentage difference in the fitted value with and without each of there cases
+- What does this measure indicate about the influence of each of the cases?
+
+Firstly, I have not found a proper function in R to calculate such kind of value. So I just write my own function as belows:
+
+```{r}
+avr.percent.dif=function(indata){
+  temp=NULL
+  full=lm(data = indata,Y~.)
+  X=indata[,-1]
+  for (i in 1:nrow(indata)){
+    dat=indata[-i,]
+    reduced=lm(data =dat, Y~.)
+    fit.values=predict(reduced,X,se.fit = F)
+    ans=mean(abs((fit.values-full$fitted.values)/full$fitted.values))*100
+    temp=c(temp,ans)
+  }
+  return (temp)
+}
+```
+
+And the result has been shown below:
+```{r}
+ans=avr.percent.dif(dat)
+sort(abs(ans),decreasing = T)[1:5]
+order(abs(ans),decreasing = T)[1:5]
+ans[obj]
+```
+
+The five largest cases have been listed above. 
+
+It appears that all the cases have small impact on the total percentage, because the largest value is just 1.3249%. So based on this measure, we can conclude that the influence of each of these cases is not very much.
+
+## f
+
+- Cook's distance plot
+- Influential cases?
+
+```{r}
+plot(regmodel, which=4, cook.levels=cutoff)
+abline(h=cutoff,col="blue")
+```
+
+According to the plot, case 17,27 and 31 may be considered as **influential**.
+
+# Problem 2(KNNL 10.17)
+## a
+```{r}
+pairs(dat)
+cor(dat)
+```
+
+It seems that X1, X2 and X3 have strong correlation, espectially for X1 and X2, which is as high as -0.7868. In addition, X1 and X3, as well as X2 and X3, have a large correlation up to 0.56
+
+## b
+```{r}
+(V=vif(regmodel))
+```
+
+Since the mean value here :
+```{r}
+mean(V)
+```
+
+largely exceeds 1, we can conclude that there **is** some kind of multicollinearity problem here.
+
+They provide the same evidence with part a.
+
+# Problem 3
+## KNNL 10.21
+### a
+- Variance inflation factors
+- explain
+
+```{r, include=FALSE}
+rm(list = ls())
+dat=read.table("CH09PR15_11905844.txt")
+colnames(dat)=c("Y","X1","X2","X3")
+cor(dat)
+require(car)
+```
+
+```{r}
+regmodel=lm(data = dat,Y~.)
+(V=vif(regmodel))
+mean(V)
+```
+
+The mean value of VIF is only 1.2, we can conclude that there is no indication of serious multicolinearity problem here.
+
+### b
+
+- residuals against $\hat Y$ and each of the variable
+- qq plot
+
+```{r}
+par(mfrow=c(2,2))
+res=regmodel$residuals
+plot(y=res,x=predict(regmodel));abline(h=0)
+plot(y=res,x=dat$X1);abline(h=0)
+plot(y=res,x=dat$X2);abline(h=0)
+plot(y=res,x=dat$X3);abline(h=0)
+par(mfrow=c(1,1))
+qqnorm(res)
+qqline(res,col="red")
+```
+
+### c
+
+- prepare separate added-variable plots
+
+```{r}
+avPlots(regmodel)
+```
+
+
+### d
+
+According to the added-variable plots, we can conclude that all the variables are useful, since all the variable shows a strong linear relationship with Y|others.
+
+However, there are something strange. 
+
+In the residual plots. I have spotted some kind of trend in residuals against X1 and X2. In addition, the distribution of Xs are not even. The constant in variance is also questioned. Finally,in the QQ plot, there are some points that are too far away from the red line(in the right corner).
+
+In the residual plots. Although the usefulness of the variable is not questioned, there is some kind of curvilinear pattern in Y|other against X3.
+
+All of the evidence above show that the model needs to be modified.
+
+## KNNL 10.22
+### a
+
+- fit the theoretical model
+
+```{r, include=FALSE}
+dat$ln.Y=log(dat$Y)
+dat$ln.X1=log(dat$X1)
+dat$ln.X2=log(140-dat$X2)
+dat$ln.X3=log(dat$X3)
+```
+
+``` {r}
+regmodel2=lm(data = dat,ln.Y~ln.X1+ln.X2+ln.X3)
+summary(regmodel2)
+```
+
+So the fitted model is:
+$$\hat ln(Y_i)=-2.04269-0.71195ln(X_1)+0.74736ln(140-X_2)+0.75745ln(X_3)$$
+
+### b
+
+- residuals vs $\hat Y$ and each of the predictors
+- difficulties solved?
+
+```{r}
+par(mfrow=c(2,2))
+res=regmodel2$residuals
+plot(y=res,x=predict(regmodel2));abline(h=0)
+plot(y=res,x=dat$ln.X1);abline(h=0)
+plot(y=res,x=dat$ln.X2);abline(h=0)
+plot(y=res,x=dat$ln.X3);abline(h=0)
+par(mfrow=c(1,1))
+qqnorm(res)
+qqline(res,col="red")# Yes
+```
+
+Yes! According to the new plots, all of the  problems mentioned above have been solved.
+
+
+### c
+
+```{r}
+(V=vif(regmodel2))
+mean(V)
+```
+
+$\bar {VIF}=1.23$,which is relatively small. So we can conclude that there is no serious multicolinearity problems here.
+
+
+### d
+
+- studentlized deleted residuals
+- Bonferroni outlier test, $\alpha=0.1$
+
+Decision rule:
+
+For each case:
+$$t_i=\frac {e_i}{MSE_{(i)}(1-h_{ii})}$$
+
+If $|ti|<t(1-\alpha/2n;n-p-1)$ we conclude that case i is not outlying; otherwise we conclude that case i is an outltying case.(Here n=33 and p=4)
+
+Conclusion:
+```{r}
+n=nrow(dat)
+r.student=rstudent(regmodel2)
+outlierTest(regmodel)
+```
+
+Since the extreme point has the p-value of 0.28, which is larger than 0.1, we fail to reject $H_0$. So we can conclude that there is no outlying cases based on the Boferonni test.
+
+### e
+
+- identify outlying X observation based on hat matrix
+```{r}
+hii=hatvalues(regmodel2)
+p=sum(hii)
+n=nrow(dat)
+h=2*p/n
+which(hii>h)
+```
+
+Here the cut-off point is $2p/n$. It can be seen above that none of the case is beyond the cut-off edge. We can conclude that there is no outlying X observations.
+
+
+
+
+
+### f
+
+- DFFITS, DFBETAS and Cook's distance for case 28 and 29.
+- Assess the influence
+
+```{r}
+obj=c(28,29)
+dffit=dffits(regmodel)
+dffit[obj]
+dfbeta=dfbetas(regmodel2)
+dfbeta[obj,]
+cook.d=cooks.distance(regmodel2)
+cook.d[obj]
+(cutoff=c(1,1,4/n))
+```
+
+The cut off value is listed at the end of the code. Here we use 1 for DFFIT and DFBETAS since the size of dataset is small.
+
+It can be seen that all the DFFIT, DFBETAS and Cook's distance are below the cut-off edge. We can concude although case 28, 29 are relatively far outlying with repect to their Y values, they do not have much impact on fitted values and coeffients.
+
+# Problem 4(KNNL 11.6)
+
+```{r, include=FALSE}
+rm(list = ls())
+dat=read.table("CH11PR06_34170845.txt")
+colnames(dat)=c("Y","X")
+```
+
+## a
+```{r}
+regmodel=lm(data = dat,Y~.)
+res=regmodel$residuals
+plot(res~dat$X)
+```
+
+It seems that the residuals does not have a constant variance with the growth of X.
+
+## c
+```{r}
+absr=abs(res)
+plot(absr~dat$X)
+```
+
+It seems that the absolute standard devition grows with the growth of X, leading to inconstant variance.
+
+## d
+```{r}
+fit=lm(absr~dat$X)
+#summary(fit)
+dat$shat=fit$fitted.values
+dat$wt=1/(dat$shat*dat$shat)
+
+wt=dat$wt
+s=sort(wt,decreasing = T)
+o=order(wt,decreasing = T)
+dat[o,]
+```
+
+Case 4 and Case 7 receive the largest weight, while case 3 receives the smallest weight.
+
+## e
+
+So the cofficients for weighted least squares estimates are:
+```{r}
+fit2=lm(data = dat,weights = wt,Y~X)
+fit2$coefficients
+```
+
+In constract to the previous least squars estimate:
+```{r}
+fit$coefficients
+```
+
+They have been varied a lot, not similar at all.
+
+## f
+
+- compare the estimated standard deviation of $b_{w0}$ and $b_{w1}$
+
+```{r}
+ans2=summary(fit2)
+ans1=summary(fit)
+ans1$coefficients
+ans2$coefficients
+```
+
+It seems that the std.errors of $b_1$ and $b_0$ are nearly three times bigger than the previous ordinary least squared estimates.Let's give some explanation to this phenomenonn.
+
+Let's look back to the expression of $s(b)$:
+$$s^2{(b_w)}=MSE_w(X'WX)^{-1}$$
+
+As a special case for weightes linear regresion, the ordinary least squared estimates are:
+$$s^2{(b)}=MSE(X'X)^{-1}$$
+
+Here we can get $MSE=1.385$ and $MSE_w=1.159$
+
+Since W is a dignal matrix, we can divide $X'WX$ into $(\sqrt{(W)}X)'(\sqrt{(W)}X)$
+
+So **approximately**, the standard error of weighted least squared estimate should be $\bar{\sqrt{(W)}}*MSE_w/MSE$:
+```{r}
+W=diag(wt)
+T=solve(sqrt(W))
+mean(T)*1.159/1.385
+```
+
+which is similar to the practical value 3.

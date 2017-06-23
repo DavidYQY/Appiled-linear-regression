@@ -1,0 +1,297 @@
+---
+title: "Applied Linear Statistical Models"
+subtitle: "Homework 5"
+author: "Qiuyang Yin, 2015011468"
+date: "April 18th, 2017"
+output: pdf_document
+---
+
+# Problem 1
+## Preparations
+```{r}
+rm(list=ls())
+x=c(8,4,0,-4,-8)
+y=c(7.8,9.0,10.2,11.0,11.7)
+X=matrix(c(rep(1,5),x),nrow = 5,ncol = 2)
+Y=t(t(y))
+```
+
+##  KNNL 5.4
+- $Y'Y$, $X'X$ and $X'Y$
+
+```{r}
+t(Y) %*% Y
+t(X) %*% X
+t(X) %*% Y
+```
+
+## KNNL 5.12
+
+- $(X'X)^{-1}$
+
+```{r}
+solve(t(X) %*% X)
+```
+
+# Problem 2
+## a
+
+- vectors of estimated regression coefficients
+- vectors of residuals
+- SSR
+- SSE
+- estimated variance-covariance matrix of $\mathbf b$
+- point estimate of $E{Y_h}$ when $X_h=-6$
+- estimated variance of $\hat{Y_h}$ when $X_h=-6$
+- using the matrix methods
+
+### regression coefficients
+```{r}
+(b=solve(t(X) %*% X) %*% t(X) %*% Y)
+```
+
+
+### residuals
+```{r}
+(e=Y-X %*% b)
+```
+
+### SSR
+```{r}
+J=matrix(rep(1,25),nrow = 5)
+H= X %*% (solve(t(X) %*% X)) %*% t(X)
+(SSR=t(Y) %*% (H-(1/5)*J) %*% Y)
+```
+
+### SSE
+```{r}
+(SSE=t(e) %*% e)
+```
+
+### variance-covariance matirx of b
+```{r}
+MSE=as.numeric(SSE/(5-2))
+MSE * solve(t(X) %*% X)
+```
+
+### point estimate
+```{r}
+Xh=as.matrix(c(1,-6))
+t(Xh) %*% b
+```
+
+### variance of the point estimate
+```{r}
+MSE*(t(Xh) %*% solve(t(X) %*% X) %*% Xh)
+```
+
+
+### verification using another way
+```{r}
+fit=(lm(y~x))
+fit$coefficients
+fit$residuals
+(SSR=sum((fit$fitted.values-mean(fit$fitted.values))^2))
+(SSE=sum(fit$residuals^2))
+
+(conf=predict(fit,se.fit = T,data.frame(x=-6),
+             interval = "confidence",level = 0.95))
+conf$se.fit^2
+```
+
+## b
+
+- Simplication arose from spacing of X levels 
+
+In this experiment, Xs are in the same intervals, and the mean value of X is 0.
+
+According to the equations in KNNL section 4.7:
+$$\sigma^2{b_0}=\sigma^2[\frac 1 n + \frac {\bar X^2}{\sum(X_i-\bar X)^2}]$$
+
+So when $\bar X = 0$, the variance of intercept is minimize to $\sigma^2(\frac 1 n)$
+
+
+
+## c
+
+- Find hat matrix and its rank
+- verify that H is idempotent
+
+```{r}
+(H= X %*% (solve(t(X) %*% X)) %*% t(X))
+```
+
+And the rank of H matrix is:
+```{r}
+qr(H)$rank
+```
+
+H is idempotent,since:
+```{r}
+H %*% H
+```
+Is identical to H matrix
+
+
+## d
+- find $S^2\{e\}$
+
+```{r}
+MSE*(diag(5)-H)
+```
+
+# Problem 3
+## a
+- Write down the linear regresison model in matrix form togerther with proper assumptions
+
+```{r}
+dat=read.table("CH06PR05_83630456.txt")
+colnames(dat)=c("Y","X1","X2")
+dat$X1X2=dat$X1*dat$X2
+
+```
+
+The model:
+$$\mathbf Y= \mathbf X_{5\times4}\beta_{4\times1}+\epsilon_{5\times1}$$
+
+where
+$$
+    X=
+    \begin{pmatrix}
+    1 & X_{1,1} & X_{1,2} & X_{1,1}X_{1,2}\\
+    1 & X_{2,1} & X_{2,2} & X_{2,1}X_{2,2}\\
+    \vdots & \vdots & \vdots & \vdots \\
+    1 & X_{5,1} & X_{5,2} & X_{5,1}X_{5,2}\\
+    \end{pmatrix}
+$$
+
+and
+$$\beta=(\beta_0,\beta_1,\cdots,\beta_{4})'$$
+$$\epsilon=(\epsilon_1,\epsilon_2,\cdots,\epsilon_5)$$
+
+Model Assumptions:
+$$\epsilon \sim N(0,\sigma^2 I_n)$$
+$$Y \sim N(\mathbf X\beta , \sigma^2 I_n)$$
+
+i.e residuals are iids.
+
+## b
+- Obtain the scatter plot and correlation matrix.
+- What infomation provided?
+
+```{r}
+pairs(dat)
+cor(dat)
+```
+
+It seems that Y shows a strong positive relationship with X1 and X1X2. Besides, X1 and X2 are uncorrelated.
+
+## c
+
+- Fit the model
+- Report the fitted regression model
+- ANOVA test results
+- $R^2$ and $R_a^2$
+- estimate of error variance
+
+```{r}
+fit=lm(Y~X1+X2+X1X2,data = dat)
+summary(fit)
+anova(fit)
+```
+
+### fitted model
+
+So the fitted model is:
+$$\hat Yi=27.15+5.925X1+7.875X2-0.5X1X2$$
+
+### ANOVO test results
+$$F=101.9,p-value=8.379e-09$$
+
+reject $H_0$ and maintain that at least one of the parameter is useful.
+
+### $R^2$ and $R_a^2$
+
+$$R^2=0.9622, R_a^2=0.9528$$
+
+### estimate of error variance
+
+$$MSE=2.488^2=6.19$$
+
+## d
+- obtain the residual plots
+- comment on the assumptions of the regression model
+
+```{r}
+source("residualPlot.r")
+residualplot(fit)
+```
+
+From the first two figures, we don't see any trend , and the variance is constant. So we can conclude that the residuals are iid with constant variance.
+
+In addition, from histogram and Normal quantile plot, we can conclude that the residuals follow approximately normal distribution.
+
+
+## e
+```{r}
+newdata=dat[,-4]
+```
+### write down matrix
+
+The model:
+$$\mathbf Y= \mathbf X_{5\times3}\beta_{3\times1}+\epsilon_{5\times1}$$
+
+where
+$$
+    X=
+    \begin{pmatrix}
+    1 & X_{1,1} & X_{1,2} \\
+    1 & X_{2,1} & X_{2,2} \\
+    \vdots & \vdots & \vdots \\
+    1 & X_{5,1} & X_{5,2}\\
+    \end{pmatrix}
+$$
+
+and
+$$\beta=(\beta_0,\beta_1,\cdots,\beta_{3})'$$
+$$\epsilon=(\epsilon_1,\epsilon_2,\cdots,\epsilon_4)$$
+
+Model Assumptions:
+$$\epsilon \sim N(0,\sigma^2 I_n)$$
+$$Y \sim N(\mathbf X\beta , \sigma^2 I_n)$$
+
+i.e residuals are iids.
+
+### scatter plot and correlation 
+```{r}
+pairs(newdata)
+cor(newdata)
+```
+
+### regression results
+```{r}
+reduced=lm(Y~X1+X2,data = newdata)
+summary(reduced)
+anova(reduced)
+```
+So the regression model is:
+
+$$\hat Y=37.65+4.425+X_1+4.3750X_2$$
+
+And the anova test is:
+$$F=129.1,p-value=2.658e-09$$
+we reject $H_0$ conclude that at least one of the parameter is useful. 
+
+### residual plots
+```{r}
+residualplot(reduced)
+```
+
+The conclusion is similar to the one of full model. The variance is constant and residuals approximately follow the normal distribution.
+
+## f
+```{r}
+anova(reduced,fit)
+```
+
+Since P-value is 0.09, We do not reject $H_0$, and use reduced model without X1X2 term

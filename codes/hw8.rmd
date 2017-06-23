@@ -1,0 +1,421 @@
+---
+title: "线性回归分析"
+subtitle: "Homework 8"
+author: "尹秋阳, 2015011468"
+date: "2017年6月3日"
+header-includes:
+  - \usepackage{ctex}
+  
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    number_sections: yes
+---
+
+```{r,include=FALSE}
+options(warn = -1)
+rm(list = ls())
+require(dplyr)
+```
+
+# Problem 1(KNNL 16.5)
+## b
+
+```{r}
+u=c(5.1,6.3,7.9,9.5)
+u2=mean(u)#7.2
+sigma=2.8
+(E.MSTR=sigma^2+sum(100*(u-mean(u))^2)/3)
+(E.MSE=sigma^2)
+```
+
+这里用到了KNNL P694公式16.37。
+
+可以看到$E(MSTR)=374.5$远远大于$E(MSE)=7.84$，于是可以退出至少一组$\mu_i$和$\mu_j$不相等。(the factor level means are not equal)
+
+## c
+```{r}
+u=c(5.1,5.6,9.0,9.5)
+u2=mean(u)#7.3
+(E.MSTR=sigma^2+sum(100*(u-mean(u))^2)/3)
+```
+
+可以看到的确比part B的$E(MSTR)$大了不少。
+
+这是由于根据$E(MSTR)$的计算式子：
+$$E(MSTR)=\sigma^2 +\dfrac {n\sum (\mu_i-\mu_.)}{r-1}(when n_i=n)$$
+
+可以看到，在总体$\mu.=\bar Y_.$差不多的情况下(前者7.2，后者7.3)，点离中心越远，$E(MSTR)$越大。在第三题的改动中，5.6和9.0比6.3和7.9离中心更远，也就相应地$E(MSR)$更大。
+
+
+
+
+
+# Problem 2
+## KNNL 16.10
+```{r}
+dat=read.table("CH16PR10_987709608.txt")
+colnames(dat)=c("Y","i","j")
+dat$i=as.factor(dat$i)
+```
+
+### a
+```{r}
+plot(data=dat,Y~i)
+```
+
+看上去Middle age的人和其他两组在均值上还是有明显区别的。
+
+从方差上来看，我觉得三组人也差不多。
+
+### b
+```{r, include=FALSE}
+require(dplyr)
+```
+
+```{r}
+fit=lm(Y~i,data = dat)
+fit$fitted.values
+```
+
+### c
+
+```{r}
+fit$residuals
+```
+
+### d
+```{r}
+(ano.table=anova(fit))
+```
+
+### e
+
+$H_0: \mu_1=\mu2=\cdots=\mu_r$,$H_1$: not all $\mu_i$ are equal.
+
+Test statistic:
+
+$$F^*=\dfrac {MSTR}{MSE}$$
+
+Decision rule:
+
+if $F^* \le F(1-\alpha;r-1;n_T-r)$ conclude $H_0$
+if $F^* > F(1-\alpha;r-1;n_T-r)$ conclude $H_1$
+
+我们可以从d题的ANOVA table中读出结论。统计量F的值为：
+```{r}
+ano.table$`F value`[1]
+```
+
+相应的p值为：
+```{r}
+ano.table$`Pr(>F)`[1]
+```
+
+因为p值显著比$\alpha$(0.01)小，我们拒绝原假设，认为不是所有的均值都相等。
+
+### f
+
+Middle ege的人往往在cash offer上比例更大，而年轻和老年人比例会少一些。这可能跟经济承受能力、急迫性有关。
+
+TODO
+
+## KNNL 16.21
+
+### a
+
+貌似R里面没有直接fit的方法。。。只能使用定义强行构造了
+
+```{r}
+dat=dat %>% mutate(X1=if_else(i==1,1,0),X2=if_else(i==2,1,0))
+dat=dat %>% mutate(X1=if_else(i==3,-1,X1),X2=if_else(i==3,-1,X2))
+fit2=lm(data = dat,Y~X1+X2)
+ans=summary(fit2)
+ans$coefficients
+```
+
+其中这里的截距项就是$\mu_.=\bar Y$，也就是所有Y的均值
+
+```{r}
+mean(dat$Y)
+```
+
+可以看到是一样的结果。
+
+### b
+
+$H_0: \tau_1=\tau_2=0$
+$H_1: \tau_1^2+\tau_2^2>0$
+
+Test statistic:
+
+$$F=\dfrac {MSR}{MSE}$$
+
+Decision rule:
+
+if $F^* \le F(1-\alpha;r-1;n-r)$ conclude $H_0$
+if $F^* > F(1-\alpha;r-1;n-r)$ conclude $H_1$
+
+Conclusion:
+
+```{r}
+ans$fstatistic
+```
+
+对比之前使用的方法：
+```{r}
+ano.table$`Pr(>F)`[1]
+```
+
+可以看到F-value是相同的。相应的p-value：
+```{r, echo=FALSE}
+ano.table$`Pr(>F)`[1]
+```
+
+也是相同的。也就是说我们这里也拒绝原假设，认为**不是所有的均值都相等**。
+
+其实前后两种检验在这里是等价的。
+
+
+
+
+# Problem 3
+## KNNL 17.11
+
+### a
+
+```{r, include=FALSE}
+require(ggplot2)
+```
+```{r}
+
+meandat=dat %>% group_by(i) %>% summarise(m=mean(Y))
+
+meandat$m=as.numeric(meandat$m)
+meandat$i=as.numeric(meandat$i)
+ggplot(meandat,aes(x=i,y=m))+geom_line()+geom_point()
+```
+
+这个图显示年龄的确是一个因素。
+
+### b
+
+用两种方法，一是不使用pooling variances:
+
+```{r, include=FALSE}
+require(plyr)
+```
+
+```{r}
+summaryStat <- ddply(dat, ~i, summarise, N = length(Y), mean=mean(Y), StdDev=sd(Y),  Minimun = min(Y), Maximum=max(Y))
+summaryStat = within(summaryStat, {StdError = StdDev/sqrt(N) } )
+summaryStat = within(summaryStat, {Lower99CL = mean - StdError * qt(0.995,df=N-1)})
+summaryStat = within(summaryStat, {Upper99CL = mean + StdError * qt(0.995,df=N-1)})
+summaryStat$Upper99CL[1]
+summaryStat$Lower99CL[1]
+```
+
+即$\mu_1$ 99%的置信区间是[19.9471,23.0529]
+
+一种是使用pooling variance:
+```{r}
+u1=summaryStat$mean[1]
+s=ans$sigma
+df=36-3
+tc=qt(0.995,df = df)
+(upper=u1+s*tc/sqrt(12))
+(lower=u1-s*tc/sqrt(12))
+```
+
+也可以用Anova：
+```{r}
+confint(fit,level = 0.99)[1,]
+```
+
+可以看到答案是一样的。
+
+
+可以看到使用pooled variance估计的区间比之前那个要窄一些，因为自由度更大了。
+
+
+### c
+
+```{r}
+u=meandat$m[3]-meandat$m[1]
+(upper=u+tc*s*sqrt(1/12+1/12))
+(lower=u-tc*s*sqrt(1/12+1/12))
+```
+
+我们有99%的信心认为$D=\mu_3-\mu_1$的取值在-1.844到1.677421之间
+
+### d
+
+令$L=\mu_1-2\mu_2+mu_3$
+$$H_0: L=0$$
+$$H_1: L \neq 0$$
+
+Test statistic:
+$$t=\dfrac {L}{s(L)}$$
+
+
+其中$s(L)=s*\sqrt(\sum_{i=1}^r\dfrac {c_i^2}{n_i})$
+
+Decision rule:
+
+if $|t| \le t(1-\alpha/2;n_T-r)$ $H_0$ is concluded; otherwise, $H_1$ is concluded.
+
+Conclusion
+
+```{r}
+L=meandat$m[1]-2*meandat$m[2]+meandat$m[3]
+s.L=s*sqrt(1/12+4/12+1/12)
+t=L/s.L
+abs(t)
+tc
+```
+
+可以看到，$|t|=11.277>tc=2.733$,我们拒绝原假设，认为$L \neq 0$，即$\mu_2-\mu_1 \neq mu_3 - \mu_2$
+
+
+
+
+
+
+
+
+
+
+
+### e
+
+```{r}
+mod1=aov(Y~i,data = dat)
+mod1.Tukey = TukeyHSD(mod1,conf.level=0.9)
+mod1.Tukey
+plot(mod1.Tukey, sub="Tukey Honest Significant Differences")
+```
+
+Tukey procedure给出的置信区间由`mod1.Tukey$i`给出，这里family confidence coefficient是0.9。表明我们有90%的信心认为$\mu_2-\mu_1$,$\mu_3-\mu_1$,$\mu_3-\mu_2$分别落入[4.88508,7.619492],[-1.4528,1.286158]和[-7.70,-4.96]中。
+
+三个检验的pvalue也已经给出，表明1和3没有明显区别，而2和1，2和3都有明显的区别。
+
+这与(a)的图的结论一样。
+
+### f
+
+```{r}
+(tc1=qtukey(0.9,3,33)/sqrt(2)) # tukey
+(tc2=qt(1-0.1/2/3,df = 33)) # bofferoni
+```
+
+可以看到这里tc1<tc2，说明tukey的效率更高，bofferoni的效率没有提升。
+
+事实上，根据KNNLP757的论述，当执行全部的pairwise comparison时，tukey的效率往往比bofferoni更高效，
+
+
+## KNNL 17.16
+### a
+```{r}
+L=meandat$m[1]-2*meandat$m[2]+meandat$m[3]
+s.L=s*sqrt(1/12+4/12+1/12)
+tc=qt(0.995,df = 33)
+(upper=L+tc*s.L)
+(lower=L-tc*s.L)
+```
+
+我们有99%的信心认为$L=\mu_3-\mu_2-(\mu_2-\mu_1)$落在[-15.633,-9.534]之间。
+
+### b
+```{r}
+(tc1=qtukey(0.9,3,33)/sqrt(2)) # tukey
+(tc2=qt(1-0.1/2/4,df = 33)) # bofferoni
+(tc3=sqrt((3-1)*qf(0.9,2,33)))
+```
+
+好像tukey方法的结果最小，因而最为有效；我们取tukey方法的值作为后续tc。
+
+```{r, include=FALSE}
+require(multcomp)
+```
+
+```{r}
+c1 <- c(-1,1,0) 
+c2 <- c(0,-1,1)
+c3 <- c(-1,0,1)
+c4 <- c(1,-2,1)
+
+cntrMat <- rbind("1 v 2"=c1,  
+                 "2 v 3"=c2, 
+                 "1 v 3"=c3,
+                 "1&3 v2"=c4) 
+result=glht(mod1, linfct=mcp(i=cntrMat), alternative="two.sided")
+confint(result,level = 0.9,calpha = tc1)
+```
+
+可以看到，我们有90%的信心认为$\mu_2-\mu_1$ 落于[4.88,7.62], $\mu_3-\mu_2$ 落于[-7.70,-4.96], $\mu_3-\mu_1$ 落于[-1.45,1.29], 而$\mu_1-2\mu_2+\mu_3$落于[-14.96,-10.2]。
+
+
+
+
+
+# Problem 4
+## a
+```{r}
+resid=mod1$residuals
+ggplot(dat,aes(x=resid,y=i,color=i))+geom_point()
+```
+
+- outliers
+
+好像有两个点比其他点更远离中心(>3)，需要进一步测试
+
+- 方差
+
+总体来说差不多，group 2(middle age)的人可能稍微小一点。
+
+- 正态性
+
+好像不是很正态，基本上处于均匀分布的样子，需要进一步测试
+
+
+
+## b
+```{r}
+qqnorm(resid)
+qqline(resid,col=2)
+```
+
+```{r}
+sx=sort(resid)
+sy=qnorm((1:36-0.5)/36)
+cor(sx,sy)
+```
+
+可以看到，基本上点还是在线旁边，而且相关系数也相当的大，可以认为正态性还是近似满足的。有可能去掉两个离群值后效果会更好。(一头一尾)
+
+## d
+
+The boferroni outlier test is shown below:
+
+Decision rule:
+
+For each case:
+$$t_i=\frac {e_i}{MSE_{(i)}(1-h_{ii})}$$
+
+If $|ti|<t(1-\alpha/2n;n-p-1)$ we conclude that case i is not outlying; otherwise we conclude that case i is an outltying case.(Here n=36 and p=3)
+
+```{r}
+stl.del.resid=rstudent(mod1)
+head(stl.del.resid)
+```
+
+```{r, include=FALSE}
+require(car)
+```
+
+```{r}
+outlierTest(mod1)
+```
+
+可以看到最小p值的点的pvalue是0.5428，我们不拒绝原假设，认为没有离群值。
+

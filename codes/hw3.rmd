@@ -1,0 +1,333 @@
+---
+title: "Linear regression HW3"
+author: "2015011468"
+date: "2017.3.22"
+output: pdf_document
+---
+
+# Problem 1
+## a
+
+- obtain 95 percent confidence interval for age 60
+- interpret
+
+```{r}
+m_data=read.table("CH01PR27_967407278.txt",header = T)
+reg=lm(mass~age,data=m_data)
+```
+```{r}
+conf=predict(reg,se.fit = T,data.frame(age=60),interval = "confidence",level = 0.95)
+(conf_ans=conf$fit)
+```
+
+这说明对于回归结果来说，我们有95%的信心认为Y(60)属于82.83到87.05895
+
+## b
+
+- obtain 95 percent prediction interval for age 60
+- interpret
+
+```{r}
+pred=predict(reg,se.fit = T,data.frame(age=60),interval = "predict",level = 0.95)
+(pre_ans=pred$fit)
+```
+
+这说明对于真实值来说，我们有95%的信心认为真实值Y(60)属于62.45到101.443
+
+## c
+
+- Boundary value for $X_h = 60$
+- wider than confidence band ? 
+
+```{r}
+n = 60 
+alpha = 0.05
+dfn = 2
+dfd = n-2
+w2 = 2 * qf(1-alpha, dfn, dfd)
+w = sqrt(w2)
+alphat = 2 * (1-pt(w, dfd))
+conf_band=predict(reg,se.fit = T, newdata=data.frame(age=60), interval="confidence", level = 1-alphat)
+(conf_band_ans=conf_band$fit)
+```
+
+和confidence interval 比较：
+```{r}
+conf_ans
+```
+
+可以看到boundary value的确比confidence interval 宽
+
+原因在于：对于boundary band的定义：
+$$P[L(X)<\beta_0+\beta_1x<U(x)] = 1-\alpha$$
+for all the X
+
+而for one fixed x 没有“所有 x”的限制，要求宽松。
+
+换句话说，在confidence interval连出来的带，所有x在其中的概率<$1-\alpha$,于是真实的置信带肯定宽于confidence interval 连出来的带子
+
+# Problem 2
+## a
+
+- Plot $Y_i-\hat{Y_i}$ against $X_i$
+- Plot $\hat{Y_i}-\bar Y$ against $X_i$
+- SSE and SSR, component of SST
+- Imply about $R^2$
+
+```{r}
+y=m_data$mass;y2=reg$fitted.values;x=m_data$age
+plot(y=y-y2,x=x);abline(h=10);abline(h=-10)
+plot(y=y2-mean(y),x=x);abline(h=10);abline(h=-10)
+```
+
+<br />
+可以看到SSE的点在-10到10的居多，SSR的点均匀分布。于是SSR会比SSE大一些，在SST的组成成分中占主导地位。
+
+这预示着$R^2$值会大于0.5
+
+## b
+- set up ANOVA table
+
+```{r}
+(ans.table=anova(reg))
+```
+
+## c
+
+- F test
+- state $H_0$ and $H_1$ decision rule and conclusion
+
+$$H_0: \beta_1=0 \\ H_1: \beta_1 \ne 0$$
+
+### Decision rule:
+We reject $H_0$ when $F_0$ is large, that is:
+$$if F_0 > F(1-\alpha,df_R,df_E)=F_{\alpha,1,n-2}$$
+where $F_0=MSR/MSE$
+
+### Conclusion:
+```{r}
+ans.table$`Pr(>F)`[1]
+```
+
+可以看到，P-value非常小，即我们要拒绝原假设，认为$\beta_1 \ne 0$
+
+## d
+
+- proportion of the total variation in muscle mass "**unexplained**"
+
+其实就是1-R^2的值
+
+我们先直接从ANOVA中提取出R^2值，命令如下：
+```{r}
+(r2=summary(reg)$r.squared)
+```
+
+另一种是通过自己根据$R^2$的定义计算，如下：
+```{r}
+b1=reg$coefficients[2]
+x=m_data$age
+y=m_data$mass
+r.otherway=b1*sqrt(sum((x-mean(x))^2))/sqrt(sum((y-mean(y))^2))
+r.otherway^2
+```
+
+可以看到结果是相同的，都是0.75。
+
+于是unexplained 比例就是$1-0.75=0.25$ 这是一个比较低的数值。算是比较强的解释性。
+
+不过一种说法是作为预测来说$R^2$还不够大。这完全取决于需求。
+
+## e
+
+$R^2$已经由d给出:
+```{r}
+(r2=summary(reg)$r.squared)
+```
+
+由于此处$\beta_1 < 0$，于是：
+```{r}
+(r=-sqrt(r2))
+```
+
+# Problem 3
+
+## Preparations:
+```{r}
+c_data=read.table("CH01PR28_207305355.txt",header = F)
+colnames(c_data)=c("CrimeRate","Percentage")
+crime.lm=lm(data=c_data,CrimeRate~Percentage)
+plot(c_data$CrimeRate~c_data$Percentage)
+abline(crime.lm)
+x=c_data$Percentage
+y=c_data$CrimeRate
+```
+
+## a
+
+- set up the ANOVA table
+
+```{r}
+(crime.an=anova(crime.lm))
+```
+
+## b
+- F test
+- show the eqivalence
+- P-value
+
+### t test
+由于t test 是2.30的内容，这里仅仅简单的得到结果，不细说其decision rule
+```{r}
+m.df=crime.lm$df.residual
+T=summary(crime.lm)$coefficients['Percentage','t value']
+(t.pvalue=summary(crime.lm)$coefficients['Percentage',4])
+```
+
+### f test
+$$H_0: \beta_1=0\\H_1: \beta_1 \ne 0$$
+Decision rule:
+如果满足下述条件，我们拒绝原假设
+$$F=\frac {MSR}{MSE}> F_{\alpha,1,n-2}$$
+```{r}
+F=crime.an$`F value`[1]
+(f.pvalue=crime.an$`Pr(>F)`[1])
+```
+可以看到p值小于0.01，即$\beta_1 \ne 0$
+
+### 相等性
+首先可以得到$T^2=F$：
+```{r}
+data.frame(T^2,F)
+```
+
+其次从pvalue来看,也是相同的
+```{r}
+data.frame(f.pvalue,t.pvalue)
+```
+
+于是可以得出结论，在simple linear的模型下，t test和f test在数值上是等价的。
+
+### b题评论
+
+如果是单边检验（题目的意思应该是双边...但实际是单边更合理），需要修改p-value，此时仍然相等(1/2 pvalue)，即：
+```{r}
+pt(T,df=m.df)#1/2 of the original value
+```
+
+## c
+```{r}
+(r2=summary(crime.lm)$r.squared)
+```
+
+这是一个比较小的值，说明解释性不强
+
+## d
+考虑到$\beta_1<0$，于是：
+```{r}
+(r=-sqrt(r2))
+```
+
+# Problem 4
+## a
+
+- State theh full and reduced models
+
+### Full model
+$$Y_i=\beta_0+\beta_1X_i+\epsilon_i$$
+
+### Redeced model
+$$Y_i=\beta_0+\epsilon_i$$
+
+
+## b
+
+obtain
+
+- $SSE(F)$
+- $SSE(R)$
+- $df_{F}$
+- $df_{R}$
+- test statistic $F*$
+- decision rule
+
+```{r}
+crime.lm2=lm(c_data$CrimeRate~1)
+df.F=crime.lm$df.residual
+df.R=crime.lm2$df.residual
+SSE.F=anova(crime.lm)$'Sum Sq'[2]
+SSE.R=anova(crime.lm2)$'Sum Sq'
+F.new=(SSE.R-SSE.F)/(df.R-df.F)/(SSE.F/df.F)
+```
+```{r}
+SSE.F
+SSE.R
+df.F
+df.R
+F.new
+```
+
+$$H_0: \beta_1=0\\H_1: \beta_1 \ne 0$$
+i.e. $H_0$ means reduced models can replace full models, while $H_1$ means it can't.
+
+We reject $H_0$ if 
+$$F.new > F(1-\alpha,df_{ER}-df_{EF},df_{EF})=F_{\alpha,1,n-2}$$
+
+And we can get the new p-value as:
+```{r}
+(f2.pvalue=1-pf(F.new,df.R - df.F, df.F))
+```
+
+## c
+
+可以看到，t-test，f-test和这里的general linear test 的p值是相同的。即在这个模型中，他们是等价的：
+
+```{r}
+data.frame(t.pvalue,f.pvalue,f2.pvalue)
+```
+
+# Problem 5
+
+$$E(MSR)=E(b_1^2S_{xx})=S_{xx}E(b_1^2)$$
+where
+$$E(b_1^2)=var(b_1)+E(b_1)^2\\
+var(b_1)=\frac {\sigma^2} {S_{xx}}, E(b_1)=\beta_1 $$
+so we can conclude that:
+$$E(MSR)=S_{xx}(\frac {\sigma^2} {S_{xx}}+\beta_1^2)\\
+=\sigma^2+\beta_1^2S_{xx}$$
+where $S_{xx}$ stands for $\sum(X_i-\bar X)$
+
+# Problem 6
+## a
+
+$$E(MSR)=\sigma^2+\beta_1^2\sum{(X_i-\bar X^2)}\\ E(MSE)=\sigma^2$$
+于是：
+```{r}
+x=c(1,4,10,11,14)
+(E.MSR=0.36+9*sum((x-mean(x))^2))
+(E.MSE=0.36)
+```
+
+## b
+
+- 为了测试是否负相关，用X=c(6,7,8,9,10)好吗？
+- 如果是为了预测X=8的值呢？
+
+如果为了测试负相关与否，需要用到t-test或者f-test
+
+以t-test为例，统计量$T=\frac {b1-0}{s(b1)}$.其中$s(b1)=\frac x {\sqrt{s_{xx}}}$, $S_{xx}$越大，精度越高，效果越好。
+
+所以应该尽可能分散X的取值，用6，7，8，9，10不好
+
+如果为了预测X=8的值，我们关注的是$\sigma^2(\hat\mu_h)=\sigma^2[\frac 1 n + \frac {(X_h-\bar X)^2}{\sum (X_i-\bar X)^2}]$
+
+由于原先的样本$\bar X=8$,新样本也是$\bar X=8$
+所以两种样本下，$\sigma^2(\hat\mu_h)$都为：
+$$\sigma^2(\hat\mu_h)=\sigma^2[\frac 1 n]$$
+
+即如果为了预测X=8的值，两种选择无好坏之分。
+
+
+
+
+
+
